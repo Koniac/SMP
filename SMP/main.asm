@@ -1,100 +1,172 @@
-.386 
-.model flat,stdcall 
-option casemap:none 
-include 	d:\masm32\include\windows.inc 
-include 	d:\masm32\include\user32.inc 
-includelib 	d:\masm32\lib\user32.lib            					; calls to functions in user32.lib and kernel32.lib 
-include 	d:\masm32\include\kernel32.inc 
-includelib 	d:\masm32\lib\kernel32.lib
+.386
+.model flat,stdcall
+option casemap:none
 WinMain proto :DWORD,:DWORD,:DWORD,:DWORD
+include 	d:\masm32\include\windows.inc
+include 	d:\masm32\include\user32.inc
+include 	d:\masm32\include\kernel32.inc
+include 	d:\masm32\include\comdlg32.inc
+includelib 	d:\masm32\lib\user32.lib
+includelib 	d:\masm32\lib\kernel32.lib
+includelib 	d:\masm32\lib\comdlg32.lib
 
-.DATA                     											; initialized data 
-ClassName db "SimpleWinClass",0        								; the name of our window class 
-AppName db "Our First Window",0        								; the name of our window
-OurText db "Win32 assembly is great and easy!",0
+.const
+IDM_OPEN equ 1
+IDM_SAVE equ 2
+IDM_EXIT equ 3
+MAXSIZE equ 260
+MEMSIZE equ 65535
 
+EditID equ 1
 
-.DATA?                												; Uninitialized data 
-hInstance HINSTANCE ?        										; Instance handle of our program 
-CommandLine LPSTR ? 
+.data
+ClassName 		db "SMPClass",0
+AppName  		db "SMPApp",0
+EditClass 		db "edit",0
+MenuName 		db "FirstMenu",0
+ofn   OPENFILENAME <>
+FilterString 	db "All Files",0,"*.*",0
+             	db "Text Files",0,"*.txt",0,0
+buffer 			db MAXSIZE dup(0)
 
-.CODE                												; Here begins our code 
-start: 
-invoke GetModuleHandle, NULL            							; get the instance handle of our program. 
-                                        
-mov hInstance,eax 													; Under Win32, hmodule==hinstance mov hInstance,eax 
-invoke GetCommandLine                   							; get the command line. You don't have to call this function IF 
-mov CommandLine,eax 													; your program doesn't process the command line. 
-invoke WinMain, hInstance,NULL,CommandLine, SW_SHOWDEFAULT        	; call the main function 
-invoke ExitProcess, eax                           					; quit our program. The exit code is returned in eax from WinMain.
+.data?
+hInstance HINSTANCE ?
+CommandLine LPSTR ?
+hwndEdit HWND ?
+hFile HANDLE ?
+hMemory HANDLE ?
+pMemory DWORD ?
+SizeReadWrite DWORD ?
 
-WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD 
-    LOCAL wc:WNDCLASSEX                                            ; create local variables on stack 
-    LOCAL msg:MSG 
-    LOCAL hwnd:HWND
+.code
+start:
+	invoke GetModuleHandle, NULL
+	mov    hInstance,eax
+	invoke GetCommandLine
+	mov CommandLine,eax
+	invoke WinMain, hInstance,NULL,CommandLine, SW_SHOWDEFAULT
+	invoke ExitProcess,eax
 
-    mov   wc.cbSize,SIZEOF WNDCLASSEX                   			; fill values in members of wc 
-    mov   wc.style, CS_HREDRAW or CS_VREDRAW 
-    mov   wc.lpfnWndProc, OFFSET WndProc 
-    mov   wc.cbClsExtra,NULL 
-    mov   wc.cbWndExtra,NULL 
-    push  hInstance 
-    pop   wc.hInstance 
-    mov   wc.hbrBackground,COLOR_WINDOW+1 
-    mov   wc.lpszMenuName,NULL 
-    mov   wc.lpszClassName,OFFSET ClassName 
-    invoke LoadIcon,NULL,IDI_APPLICATION 
-    mov   wc.hIcon,eax 
-    mov   wc.hIconSm,eax 
-    invoke LoadCursor,NULL,IDC_ARROW 
-    mov   wc.hCursor,eax 
-    invoke RegisterClassEx, addr wc                       			; register our window class 
-    invoke CreateWindowEx,NULL,\ 
-                ADDR ClassName,\ 
-                ADDR AppName,\ 
-                WS_OVERLAPPEDWINDOW,\ 
-                CW_USEDEFAULT,\ 
-                CW_USEDEFAULT,\ 
-                CW_USEDEFAULT,\ 
-                CW_USEDEFAULT,\ 
-                NULL,\ 
-                NULL,\ 
-                hInst,\ 
-                NULL 
-    mov   hwnd,eax 
-    invoke ShowWindow, hwnd,CmdShow               					; display our window on desktop 
-    invoke UpdateWindow, hwnd                                 		; refresh the client area
-
-    .WHILE TRUE                                                     ; Enter message loop 
-                invoke GetMessage, ADDR msg,NULL,0,0 
-                .BREAK .IF (!eax) 
-                invoke TranslateMessage, ADDR msg 
-                invoke DispatchMessage, ADDR msg 
-   .ENDW 
-    mov     eax,msg.wParam                                          ; return exit code in eax 
-    ret 
+WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD
+	LOCAL wc:WNDCLASSEX
+	LOCAL msg:MSG
+	LOCAL hwnd:HWND
+	mov   wc.cbSize,SIZEOF WNDCLASSEX
+	mov   wc.style, CS_HREDRAW or CS_VREDRAW
+	mov   wc.lpfnWndProc, OFFSET WndProc
+	mov   wc.cbClsExtra,NULL
+	mov   wc.cbWndExtra,NULL
+	push  hInst
+	pop   wc.hInstance
+	mov   wc.hbrBackground,COLOR_WINDOW+1
+	mov   wc.lpszMenuName,OFFSET MenuName
+	mov   wc.lpszClassName,OFFSET ClassName
+	invoke LoadIcon,NULL,IDI_APPLICATION
+	mov   wc.hIcon,eax
+	mov   wc.hIconSm,eax
+	invoke LoadCursor,NULL,IDC_ARROW
+	mov   wc.hCursor,eax
+	invoke RegisterClassEx, addr wc
+	INVOKE CreateWindowEx,WS_EX_CLIENTEDGE,ADDR ClassName,ADDR AppName,\
+           WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,\
+           CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,NULL,NULL,\
+           hInst,NULL
+	mov   hwnd,eax
+	INVOKE ShowWindow, hwnd,SW_SHOWNORMAL
+	INVOKE UpdateWindow, hwnd
+	.WHILE TRUE
+                INVOKE GetMessage, ADDR msg,NULL,0,0
+                .BREAK .IF (!eax)
+                INVOKE TranslateMessage, ADDR msg
+                INVOKE DispatchMessage, ADDR msg
+	.ENDW
+	mov     eax,msg.wParam
+	ret
 WinMain endp
 
-WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
-	LOCAL hdc:HDC
-	LOCAL ps:PAINTSTRUCT
-	LOCAL rect:RECT
-
-    .IF uMsg==WM_DESTROY                           					; if the user closes our window 
-        invoke PostQuitMessage,NULL             					; quit our application
-    .ELSEIF uMsg==WM_PAINT
-		 invoke BeginPaint,hWnd, ADDR ps
-		 mov hdc,eax
-		 invoke GetClientRect,hWnd, ADDR rect
-		 invoke DrawText, hdc,ADDR OurText,-1, ADDR rect, \
-		 DT_SINGLELINE or DT_CENTER or DT_VCENTER
-		 invoke EndPaint,hWnd, ADDR ps
-    .ELSE 
-        invoke DefWindowProc,hWnd,uMsg,wParam,lParam     			; Default message processing 
-        ret 
-    .ENDIF 
-    xor eax,eax 
-    ret 
+WndProc proc uses ebx hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
+	.IF uMsg==WM_CREATE
+		INVOKE CreateWindowEx,NULL,ADDR EditClass,NULL,\
+                   WS_VISIBLE or WS_CHILD or ES_LEFT or ES_MULTILINE or\
+                   ES_AUTOHSCROLL or ES_AUTOVSCROLL,0,\
+                   0,0,0,hWnd,EditID,\
+                   hInstance,NULL
+		mov hwndEdit,eax
+		invoke SetFocus,hwndEdit
+		mov ofn.lStructSize,SIZEOF ofn
+		push hWnd
+		pop  ofn.hWndOwner
+		push hInstance
+		pop  ofn.hInstance
+		mov  ofn.lpstrFilter, OFFSET FilterString
+		mov  ofn.lpstrFile, OFFSET buffer
+		mov  ofn.nMaxFile,MAXSIZE
+	.ELSEIF uMsg==WM_SIZE
+		mov eax,lParam
+		mov edx,eax
+		shr edx,16
+		and eax,0ffffh
+		invoke MoveWindow,hwndEdit,0,0,eax,edx,TRUE
+	.ELSEIF uMsg==WM_DESTROY
+		invoke PostQuitMessage,NULL
+	.ELSEIF uMsg==WM_COMMAND
+		mov eax,wParam
+		.if lParam==0
+			.if ax==IDM_OPEN
+				mov  ofn.Flags, OFN_FILEMUSTEXIST or \
+                                OFN_PATHMUSTEXIST or OFN_LONGNAMES or\
+                                OFN_EXPLORER or OFN_HIDEREADONLY
+				invoke GetOpenFileName, ADDR ofn
+				.if eax==TRUE
+					invoke CreateFile,ADDR buffer,\
+                                       GENERIC_READ or GENERIC_WRITE ,\
+                                       FILE_SHARE_READ or FILE_SHARE_WRITE,\
+                                       NULL,OPEN_EXISTING,FILE_ATTRIBUTE_ARCHIVE,\
+                                       NULL
+					mov hFile,eax
+					invoke GlobalAlloc,GMEM_MOVEABLE or GMEM_ZEROINIT,MEMSIZE
+					mov  hMemory,eax
+					invoke GlobalLock,hMemory
+					mov  pMemory,eax
+					invoke ReadFile,hFile,pMemory,MEMSIZE-1,ADDR SizeReadWrite,NULL
+					invoke SendMessage,hwndEdit,WM_SETTEXT,NULL,pMemory
+					invoke CloseHandle,hFile
+					invoke GlobalUnlock,pMemory
+					invoke GlobalFree,hMemory
+				.endif
+					invoke SetFocus,hwndEdit
+			.elseif ax==IDM_SAVE
+				mov ofn.Flags,OFN_LONGNAMES or\
+                                OFN_EXPLORER or OFN_HIDEREADONLY
+				invoke GetSaveFileName, ADDR ofn
+				.if eax==TRUE
+					invoke CreateFile,ADDR buffer,\
+                                                GENERIC_READ or GENERIC_WRITE ,\
+                                                FILE_SHARE_READ or FILE_SHARE_WRITE,\
+                                                NULL,CREATE_NEW,FILE_ATTRIBUTE_ARCHIVE,\
+                                                NULL
+					mov hFile,eax
+					invoke GlobalAlloc,GMEM_MOVEABLE or GMEM_ZEROINIT,MEMSIZE
+					mov  hMemory,eax
+					invoke GlobalLock,hMemory
+					mov  pMemory,eax
+					invoke SendMessage,hwndEdit,WM_GETTEXT,MEMSIZE-1,pMemory
+					invoke WriteFile,hFile,pMemory,eax,ADDR SizeReadWrite,NULL
+					invoke CloseHandle,hFile
+					invoke GlobalUnlock,pMemory
+					invoke GlobalFree,hMemory
+				.endif
+				invoke SetFocus,hwndEdit
+			.else
+				invoke DestroyWindow, hWnd
+			.endif
+		.endif
+	.ELSE
+		invoke DefWindowProc,hWnd,uMsg,wParam,lParam
+		ret
+	.ENDIF
+	xor    eax,eax
+	ret
 WndProc endp
 
 end start
