@@ -3,14 +3,21 @@
 #define IDM_OPEN 1
 #define IDM_SAVE 2
 #define IDM_EXIT 3
+#define ID_MUSIC_PLAY 4
+#define ID_MUSIC_STOP 5
 
 FirstMenu MENU
 {
  POPUP "&File"
         {
-         MENUITEM "&Open",IDM_OPEN
-         MENUITEM "&Save As",IDM_SAVE
-         MENUITEM SEPARATOR
-         MENUITEM "E&xit",IDM_EXIT
+        MENUITEM "&Open",                       IDM_OPEN
+        MENUITEM "&Save As",                    IDM_SAVE
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       IDM_EXIT
+        }
+ POPUP "&Music"
+        {
+        MENUITEM "Play",                        ID_MUSIC_PLAY
+        MENUITEM "Stop",                        ID_MUSIC_STOP
         }
 }

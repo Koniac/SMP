@@ -6,24 +6,30 @@ include 	d:\masm32\include\windows.inc
 include 	d:\masm32\include\user32.inc
 include 	d:\masm32\include\kernel32.inc
 include 	d:\masm32\include\comdlg32.inc
+include		d:\masm32\include\winmm.inc
 includelib 	d:\masm32\lib\user32.lib
 includelib 	d:\masm32\lib\kernel32.lib
 includelib 	d:\masm32\lib\comdlg32.lib
+includelib 	d:\masm32\lib\winmm.lib
 
 .const
-IDM_OPEN equ 1
-IDM_SAVE equ 2
-IDM_EXIT equ 3
-MAXSIZE equ 260
-MEMSIZE equ 65535
+IDM_OPEN 	equ 1
+IDM_SAVE 	equ 2
+IDM_EXIT 	equ 3
+ID_PLAY 	equ 4
+ID_STOP 	equ 5
+MAXSIZE 	equ 260
+MEMSIZE 	equ 65535
 
-EditID equ 1
+EditID 		equ 1
 
 .data
 ClassName 		db "SMPClass",0
 AppName  		db "SMPApp",0
 EditClass 		db "edit",0
 MenuName 		db "FirstMenu",0
+Hello_string 	db "Hello, my friend",0
+Song_Name		db "TEST.WAV",0
 ofn   OPENFILENAME <>
 FilterString 	db "All Files",0,"*.*",0
              	db "Text Files",0,"*.txt",0,0
@@ -157,6 +163,10 @@ WndProc proc uses ebx hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 					invoke GlobalFree,hMemory
 				.endif
 				invoke SetFocus,hwndEdit
+			.elseif ax==ID_PLAY
+				invoke PlaySound,offset Song_Name,NULL,SND_ASYNC
+			.elseif ax==ID_STOP
+				invoke PlaySound,NULL,NULL,SND_ASYNC
 			.else
 				invoke DestroyWindow, hWnd
 			.endif
